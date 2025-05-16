@@ -19,9 +19,10 @@ from transformers import (
 from trl import SFTTrainer
 
 from logging_class import start_queue, write_log
+from huggingface_hub import login
 
 # ---------------------------------------------------------------------------
-HfFolder.save_token("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")
+# HfFolder.save_token("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")
 wandb.login("allow", "cd65e4ccbe4a97f6b8358f78f8ecf054f21466d9")
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
@@ -77,7 +78,7 @@ output_dir = "./data/checkpoint"
 # push_to_hub = True if args.push_to_hub and args.push_to_hub == "True" else False
 push_to_hub = True
 hf_model_id = args.hf_model_id if args.hf_model_id else "aixblock"
-push_to_hub_token = args.push_to_hub_token if args.push_to_hub_token else "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"
+push_to_hub_token = args.push_to_hub_token if args.push_to_hub_token else "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"
 
 if args.training_args_json:
     with open(args.training_args_json, "r") as f:
@@ -98,9 +99,14 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger.info(f"Using device: {device}")
 
 tokenizer = AutoTokenizer.from_pretrained(
-    model_name, add_eos_token=True, use_fast=True, trust_remote_code=True
+    model_name,
+    add_eos_token=True,
+    use_fast=True,
+    trust_remote_code=True,
+    token=push_to_hub_token,
 )
-EOS_TOKEN = tokenizer.eos_token  # Must add EOS_TOKEN
+EOS_TOKEN = tokenizer.eos_token
+tokenizer.pad_token = tokenizer.eos_token  # Must add EOS_TOKEN
 alpaca_prompt = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
                     ### Instruction:
@@ -211,6 +217,7 @@ model = AutoModelForCausalLM.from_pretrained(
     device_map="auto",
     quantization_config=bnb_config,
     torch_dtype=compute_dtype,
+    token=push_to_hub_token,
 )
 
 model.enable_input_require_grads()
@@ -339,7 +346,6 @@ upload_file(
 
 print("✅ README.md đã được cập nhật.")
 
-# free the memory again
 del model
 del trainer
 torch.cuda.empty_cache()
